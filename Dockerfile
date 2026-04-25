@@ -9,8 +9,8 @@ RUN npm install
 # Copy source
 COPY . .
 
-# Accept API Key as a build argument
-ARG VITE_GEMINI_API_KEY
+# Accept API Key as a build argument (defaulted for hackathon convenience)
+ARG VITE_GEMINI_API_KEY=AIzaSyBXWRSwBWwWvsVsumW8GQ_upiVH9qiR78Y
 ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
 
 # Build the app
