@@ -6,10 +6,14 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Copy source and build
+# Copy source
 COPY . .
-# Note: VITE_ environment variables must be present during build
-# You can pass them as --build-arg if needed, but for now we assume they are in the environment or .env
+
+# Accept API Key as a build argument
+ARG VITE_GEMINI_API_KEY
+ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
+
+# Build the app
 RUN npm run build
 
 # Production stage
