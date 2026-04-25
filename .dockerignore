@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.gitignore
+Dockerfile
+nginx.conf
+implementation_plan.md
+task.md
+walkthrough.md
+.env
+README.md
