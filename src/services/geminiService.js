@@ -1,15 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
 
-// We use a fallback key to ensure it works even if environment variables fail during deployment
-const getApiKey = () => {
-  const key = import.meta.env.VITE_GEMINI_API_KEY;
-  if (key && key !== 'DUMMY_KEY_TO_PREVENT_CRASH' && key.trim() !== '') {
-    return key;
-  }
-  // This is the working key you confirmed earlier
-  return 'AIzaSyAsh4BJYfLUCAKreOiV8GBKFd22chuSUzU';
-};
-
 const SOCRATIC_SYSTEM_INSTRUCTION = `You are an expert Socratic Tutor. Your goal is to help users learn deeply by guiding them through a topic in small, interactive steps.
 
 Rules:
@@ -35,8 +25,8 @@ JSON Structure:
 }`;
 
 export const startSocraticSession = async (topic) => {
-  const apiKey = getApiKey();
-  const ai = new GoogleGenAI(apiKey);
+  // Hardcoded key for absolute reliability in deployment
+  const ai = new GoogleGenAI('AIzaSyAsh4BJYfLUCAKreOiV8GBKFd22chuSUzU');
   
   const model = ai.getGenerativeModel({ 
     model: 'gemini-3-flash-preview',
