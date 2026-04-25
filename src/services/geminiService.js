@@ -1,6 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || 'DUMMY_KEY_TO_PREVENT_CRASH' });
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'DUMMY_KEY_TO_PREVENT_CRASH';
+console.log('Gemini API Key loaded (first 5):', apiKey.substring(0, 5) + '...');
+const ai = new GoogleGenAI({ apiKey });
 
 const SYSTEM_INSTRUCTION = `You are an AI-powered Learning Companion. 
 Your goal is to help the user learn new concepts effectively.
