@@ -1,61 +1,55 @@
 import { GoogleGenAI } from '@google/genai';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'DUMMY_KEY_TO_PREVENT_CRASH';
-console.log('Gemini API Key loaded (first 5):', apiKey.substring(0, 5) + '...');
 const ai = new GoogleGenAI({ apiKey });
 
-const SYSTEM_INSTRUCTION = `You are an AI-powered Learning Companion. 
-Your goal is to help the user learn new concepts effectively.
-Personalize the content, adapt to the user's pace, and break down complex topics into easy-to-understand chunks.
-You must return the response in strict JSON format. 
-The JSON must have this exact structure:
+const SOCRATIC_SYSTEM_INSTRUCTION = `You are an expert Socratic Tutor. Your goal is to help users learn deeply by guiding them through a topic in small, interactive steps.
+
+Rules:
+1. Explain in small steps (max 2-3 sentences per step).
+2. After each step, ask exactly ONE conversational question to check understanding.
+3. If the user is correct, congratulate them briefly and go slightly deeper into the concept.
+4. If the user is wrong, be encouraging and simplify the explanation using a relatable analogy.
+5. Keep the tone conversational, engaging, and professional.
+6. You must return your response in strict JSON format.
+
+JSON Structure:
 {
-  "explanation": "A clear, engaging explanation of the topic. Use markdown if helpful.",
-  "questions": [
-    {
-      "id": 1,
-      "text": "A multiple-choice question to test understanding.",
-      "options": [
-        { "id": "a", "text": "Option A text" },
-        { "id": "b", "text": "Option B text" },
-        { "id": "c", "text": "Option C text" },
-        { "id": "d", "text": "Option D text" }
-      ],
-      "correctAnswer": "a" // must be a, b, c, or d
-    }
-  ]
-}
-Provide exactly 2 questions. Do not include any text outside the JSON object. Do not wrap in markdown code blocks.`;
+  "explanation": "Your concise explanation or feedback.",
+  "question": "Your follow-up question to check understanding.",
+  "options": [
+    {"id": "a", "text": "Option A"},
+    {"id": "b", "text": "Option B"},
+    {"id": "c", "text": "Option C"},
+    {"id": "d", "text": "Option D"}
+  ],
+  "correctAnswer": "a", // must be a, b, c, or d
+  "isTopicComplete": false // set to true only when the topic is fully covered
+}`;
 
-export const generateLesson = async (topic, previousScore = null) => {
-  try {
-    let prompt = `Teach me about: ${topic}.`;
-    if (previousScore !== null) {
-      if (previousScore === 2) {
-        prompt += ` I scored perfectly on the last quiz. Give me more advanced concepts and harder questions on this topic.`;
-      } else {
-        prompt += ` I struggled with the last quiz. Please explain it more simply, use analogies, and give easier questions to check my understanding.`;
-      }
-    }
+export const startSocraticSession = async (topic) => {
+  const model = ai.getGenerativeModel({ 
+    model: 'gemini-3-flash-preview',
+    systemInstruction: SOCRATIC_SYSTEM_INSTRUCTION
+  });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview', // Using standard model id
-      contents: [
-        { role: 'user', parts: [{ text: SYSTEM_INSTRUCTION }] },
-        { role: 'model', parts: [{ text: '{"explanation": "Understood.", "questions": []}' }] },
-        { role: 'user', parts: [{ text: prompt }] }
-      ]
-    });
+  const chat = model.startChat({
+    history: [],
+    generationConfig: {
+      responseMimeType: "application/json",
+    },
+  });
 
-    let text = response.text.trim();
-    // In case model wraps in markdown
-    if (text.startsWith('```json')) {
-      text = text.replace(/^```json/, '').replace(/```$/, '').trim();
-    }
-    
-    return JSON.parse(text);
-  } catch (error) {
-    console.error('Error generating lesson from Gemini:', error);
-    throw error;
-  }
+  const result = await chat.sendMessage(`I want to learn about: ${topic}. Start with the first basic concept.`);
+  const response = await result.response;
+  return {
+    chat,
+    data: JSON.parse(response.text())
+  };
+};
+
+export const continueSocraticSession = async (chat, userResponse) => {
+  const result = await chat.sendMessage(userResponse);
+  const response = await result.response;
+  return JSON.parse(response.text());
 };

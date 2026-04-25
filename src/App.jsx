@@ -1,173 +1,145 @@
-import React, { useState } from 'react';
-import { BookOpen, Brain, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { startSocraticSession, continueSocraticSession } from './services/geminiService';
 import ReactMarkdown from 'react-markdown';
-import './index.css';
-import { generateLesson } from './services/geminiService';
+import { Sparkles, Send, RefreshCw, BookOpen, GraduationCap } from 'lucide-react';
 
 function App() {
-  const [stage, setStage] = useState('initial'); // initial, loading, lesson, quiz, feedback
   const [topic, setTopic] = useState('');
-  const [answers, setAnswers] = useState({});
-  const [score, setScore] = useState(0);
-  const [lessonData, setLessonData] = useState(null);
-  const [error, setError] = useState(null);
+  const [chat, setChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [currentStep, setCurrentStep] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const scrollRef = useRef(null);
 
-  const handleGenerateLesson = async (e, retryScore = null) => {
-    if (e) e.preventDefault();
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, loading]);
+
+  const handleStart = async (e) => {
+    e.preventDefault();
     if (!topic.trim()) return;
-    
-    setStage('loading');
-    setError(null);
+
+    setLoading(true);
+    setMessages([]);
+    setFeedback(null);
     try {
-      const data = await generateLesson(topic, retryScore);
-      setLessonData(data);
-      setStage('lesson');
-    } catch (err) {
-      setError('Failed to generate lesson. Make sure your API key is set in .env.');
-      setStage('initial');
+      const session = await startSocraticSession(topic);
+      setChat(session.chat);
+      setCurrentStep(session.data);
+      setMessages([{ role: 'ai', text: session.data.explanation }]);
+    } catch (error) {
+      console.error(error);
+      alert('Failed to start session. Check your API key.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmitQuiz = () => {
-    let currentScore = 0;
-    lessonData.questions.forEach(q => {
-      if (answers[q.id] === q.correctAnswer) {
-        currentScore++;
-      }
-    });
-    setScore(currentScore);
-    setStage('feedback');
-  };
+  const handleAnswer = async (optionId) => {
+    if (loading) return;
 
-  const handleReset = () => {
-    setStage('initial');
-    setTopic('');
-    setAnswers({});
-    setScore(0);
-    setLessonData(null);
+    const isCorrect = optionId === currentStep.correctAnswer;
+    const selectedText = currentStep.options.find(o => o.id === optionId).text;
+    
+    // Add user message
+    const newMessages = [...messages, { role: 'user', text: selectedText }];
+    setMessages(newMessages);
+    
+    setLoading(true);
+    setFeedback(isCorrect ? 'correct' : 'wrong');
+
+    try {
+      const nextData = await continueSocraticSession(chat, `I choose option ${optionId}: ${selectedText}`);
+      setCurrentStep(nextData);
+      setMessages(prev => [...prev, { role: 'ai', text: nextData.explanation }]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+      setFeedback(null);
+    }
   };
 
   return (
     <div className="app-container">
-      <div className="header">
-        <h1>Learning Companion</h1>
-        <p>AI-Powered Adaptive Learning</p>
-      </div>
+      <header>
+        <h1><GraduationCap style={{ marginRight: '10px' }} /> Socratic Tutor</h1>
+        <p className="subtitle">Master any concept through intelligent dialogue</p>
+      </header>
 
-      {stage === 'initial' && (
-        <form onSubmit={handleGenerateLesson} className="animation-fade-in">
-          <div className="input-group">
-            <input
-              type="text"
-              className="input-field"
-              placeholder="What do you want to learn today? (e.g. Quantum Computing)"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              autoFocus
-            />
-            <button type="submit" className="btn" disabled={!topic.trim()}>
-              <Sparkles size={20} />
-              Generate Lesson
-            </button>
-          </div>
-          {error && <p style={{ color: 'var(--error)', marginTop: '1rem', textAlign: 'center' }}>{error}</p>}
-        </form>
-      )}
-
-      {stage === 'loading' && (
-        <div className="animation-fade-in" style={{ textAlign: 'center', padding: '2rem' }}>
-          <Sparkles size={48} style={{ color: 'var(--accent-primary)', marginBottom: '1rem', animation: 'pulse 1.5s infinite' }} />
-          <h3>Generating personalized lesson...</h3>
-          <p style={{ color: 'var(--text-secondary)' }}>Analyzing your request using Gemini 3.1 Pro</p>
-        </div>
-      )}
-
-      {stage === 'lesson' && lessonData && (
-        <div className="animation-slide-in">
-          <div className="lesson-content">
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: 'var(--accent-primary)' }}>
-              <BookOpen size={20} />
-              Topic: {topic}
-            </h3>
-            <div className="markdown-content" style={{ marginBottom: '1rem' }}>
-              <ReactMarkdown>{lessonData.explanation}</ReactMarkdown>
+      {!chat ? (
+        <div className="glass-card" style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <form onSubmit={handleStart}>
+            <div className="input-group">
+              <input
+                type="text"
+                placeholder="What do you want to learn today?"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                disabled={loading}
+              />
+              <button type="submit" disabled={loading || !topic.trim()}>
+                {loading ? <RefreshCw className="animate-spin" /> : <Sparkles size={20} />}
+                Start Learning
+              </button>
             </div>
+          </form>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
+            Try: "Quantum Physics", "Photosynthesis", or "How an engine works"
           </div>
-          <button onClick={() => setStage('quiz')} className="btn">
-            <Brain size={20} />
-            Take Quiz
-          </button>
         </div>
-      )}
+      ) : (
+        <div className="chat-window">
+          {messages.map((msg, i) => (
+            <div key={i} className={`message ${msg.role}`}>
+              <ReactMarkdown>{msg.text}</ReactMarkdown>
+            </div>
+          ))}
 
-      {stage === 'quiz' && lessonData && (
-        <div className="animation-fade-in">
-          {lessonData.questions.map((q, index) => (
-            <div key={q.id} className="question-card" style={{ animationDelay: `${index * 0.1}s` }}>
-              <h3 className="question-text">{index + 1}. {q.text}</h3>
+          {loading && (
+            <div className="message ai">
+              <div className="loading-dots">
+                <div className="dot"></div>
+                <div className="dot"></div>
+                <div className="dot"></div>
+              </div>
+            </div>
+          )}
+
+          {!loading && currentStep && !currentStep.isTopicComplete && (
+            <div className="message ai question-box">
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Quick Check:</h3>
+              <p style={{ marginBottom: '1.5rem', fontSize: '1.1rem' }}>{currentStep.question}</p>
               <div className="options-grid">
-                {q.options.map(opt => (
+                {currentStep.options.map((option) => (
                   <button
-                    key={opt.id}
-                    className={`option-btn ${answers[q.id] === opt.id ? 'selected' : ''}`}
-                    onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.id }))}
+                    key={option.id}
+                    className="option-btn"
+                    onClick={() => handleAnswer(option.id)}
                   >
-                    <span className="option-letter">{opt.id.toUpperCase()}</span>
-                    {opt.text}
+                    <strong style={{ color: 'var(--primary)', marginRight: '8px' }}>{option.id.toUpperCase()}:</strong> {option.text}
                   </button>
                 ))}
               </div>
             </div>
-          ))}
-          <button 
-            onClick={handleSubmitQuiz} 
-            className="btn"
-            disabled={Object.keys(answers).length < lessonData.questions.length}
-            style={{ marginTop: '2rem' }}
-          >
-            <CheckCircle2 size={20} />
-            Submit Answers
-          </button>
-        </div>
-      )}
+          )}
 
-      {stage === 'feedback' && lessonData && (
-        <div className="feedback-card">
-          <div className={`score-display ${score === lessonData.questions.length ? 'score-success' : 'score-need-help'}`}>
-            {score}/{lessonData.questions.length}
-          </div>
-          
-          <div className="feedback-message">
-            {score === lessonData.questions.length ? (
-              <div style={{ color: 'var(--success)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                <Sparkles size={48} />
-                <p>Excellent! Ready to dive deeper into {topic}?</p>
-              </div>
-            ) : (
-              <div style={{ color: 'var(--accent-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                <BookOpen size={48} />
-                <p>Let's review this with a simpler approach.</p>
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'center' }}>
-            <button 
-              onClick={() => {
-                setAnswers({});
-                setScore(0);
-                handleGenerateLesson(null, score);
-              }} 
-              className="btn"
-            >
-              {score === lessonData.questions.length ? "Go Deeper" : "Review Topic"}
-              <Brain size={20} />
-            </button>
-            <button onClick={handleReset} className="btn" style={{ background: 'rgba(255,255,255,0.1)' }}>
-              New Topic
-              <ArrowRight size={20} />
-            </button>
-          </div>
+          {currentStep?.isTopicComplete && (
+            <div className="glass-card" style={{ textAlign: 'center', marginTop: '2rem' }}>
+              <h2 style={{ color: '#10b981', marginBottom: '1rem' }}>🎉 Topic Mastered!</h2>
+              <p>You've successfully completed the dialogue on {topic}.</p>
+              <button 
+                onClick={() => { setChat(null); setTopic(''); }}
+                style={{ margin: '1.5rem auto 0' }}
+              >
+                Learn Something Else
+              </button>
+            </div>
+          )}
+          <div ref={scrollRef} />
         </div>
       )}
     </div>
