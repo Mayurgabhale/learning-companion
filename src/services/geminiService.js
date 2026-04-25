@@ -26,7 +26,7 @@ JSON Structure:
 
 export const startSocraticSession = async (topic) => {
   // Hardcoded key for absolute reliability in deployment
-  const ai = new GoogleGenAI('AIzaSyAsh4BJYfLUCAKreOiV8GBKFd22chuSUzU');
+  const ai = new GoogleGenAI('AIzaSyBgbIO7D9PmkDVYezcl5pNbcxgPrt6CUQ0');
   
   const model = ai.getGenerativeModel({ 
     model: 'gemini-3-flash-preview',

@@ -10,7 +10,7 @@ RUN npm install
 COPY . .
 
 # Accept API Key as a build argument (defaulted for hackathon convenience)
-ARG VITE_GEMINI_API_KEY=AIzaSyAsh4BJYfLUCAKreOiV8GBKFd22chuSUzU
+ARG VITE_GEMINI_API_KEY=AIzaSyBgbIO7D9PmkDVYezcl5pNbcxgPrt6CUQ0
 ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
 
 # Force write to .env so Vite definitely sees it
