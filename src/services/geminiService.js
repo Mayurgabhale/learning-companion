@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'DUMMY_KEY_TO_PREVENT_CRASH';
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyAsh4BJYfLUCAKreOiV8GBKFd22chuSUzU';
 const ai = new GoogleGenAI(apiKey);
 
 const SOCRATIC_SYSTEM_INSTRUCTION = `You are an expert Socratic Tutor. Your goal is to help users learn deeply by guiding them through a topic in small, interactive steps.
